@@ -12,29 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Clock } from "lucide-react";
 import Image from "next/image";
 
-type Student = {
-  id: string;
-  fullName: string;
-  matricNumber: string;
-  faculty: string;
-  department: string;
-  photoUrl: string;
-  status: "Pending" | "Verified" | "Rejected";
-  createdAt: string | Date;
-};
+import { Student } from "@/types/student";
 
 interface StudentDetailsProps {
   student: Student;
-  onUpdateStatus: (
-    studentId: string,
-    status: "Pending" | "Verified" | "Rejected"
-  ) => void;
+  onUpdateStatus: (studentId: string, status: Student['status']) => void;
 }
 
-export function StudentDetails({
-  student,
-  onUpdateStatus,
-}: StudentDetailsProps) {
+export function StudentDetails({ student, onUpdateStatus }: StudentDetailsProps) {
   return (
     <Card>
       <CardHeader className="pb-2">

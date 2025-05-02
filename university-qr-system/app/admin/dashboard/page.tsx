@@ -63,7 +63,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-type Student = {
+// Define the Student type - make sure this is the only Student type in the file
+export interface Student {
   id: string;
   fullName: string;
   matricNumber: string;
@@ -72,7 +73,7 @@ type Student = {
   photoUrl: string;
   status: "Pending" | "Verified" | "Rejected";
   createdAt: Timestamp | null;
-};
+}
 
 export default function AdminDashboardPage() {
   const router = useRouter();
