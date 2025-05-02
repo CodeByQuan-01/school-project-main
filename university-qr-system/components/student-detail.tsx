@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Clock } from "lucide-react";
+import Image from "next/image";
 
 type Student = {
   id: string;
@@ -19,7 +20,7 @@ type Student = {
   department: string;
   photoUrl: string;
   status: "Pending" | "Verified" | "Rejected";
-  createdAt: any;
+  createdAt: string | Date;
 };
 
 interface StudentDetailsProps {
@@ -64,10 +65,12 @@ export function StudentDetails({
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-shrink-0">
             <div className="relative h-32 w-32 overflow-hidden rounded-lg border border-gray-200">
-              <img
+              <Image
                 src={student.photoUrl || "/placeholder.svg"}
                 alt={student.fullName}
-                className="h-full w-full object-cover"
+                className="object-cover"
+                fill
+                sizes="128px"
               />
             </div>
           </div>
