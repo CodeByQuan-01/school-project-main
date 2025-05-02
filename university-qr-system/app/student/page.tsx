@@ -30,7 +30,7 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import QRCode from "qrcode.react";
+import { QRCodeCanvas } from "qrcode.react"; // Changed from import QRCode from "qrcode.react"
 import { toast } from "sonner";
 
 // Firebase configuration
@@ -391,13 +391,12 @@ export default function StudentPage() {
               </CardHeader>
               <CardContent className="flex flex-col items-center">
                 <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
-                  <QRCode
+                  <QRCodeCanvas
                     id="qr-code"
                     value={studentId}
                     size={200}
                     level="H"
                     includeMargin={true}
-                    renderAs="canvas"
                   />
                 </div>
                 <div className="text-center mb-4">
