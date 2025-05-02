@@ -37,6 +37,7 @@ import {
   doc,
   addDoc,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import { QrScanner } from "@/components/qr-scanner";
 import { StudentDetails } from "@/components/student-detail";
@@ -70,7 +71,7 @@ type Student = {
   department: string;
   photoUrl: string;
   status: "Pending" | "Verified" | "Rejected";
-  createdAt: any;
+  createdAt: Timestamp | null;
 };
 
 export default function AdminDashboardPage() {
@@ -82,7 +83,6 @@ export default function AdminDashboardPage() {
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [scannedStudentId, setScannedStudentId] = useState<string | null>(null);
   const [scannedStudent, setScannedStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -154,7 +154,6 @@ export default function AdminDashboardPage() {
   // Handle QR code scan
   const handleScan = async (studentId: string) => {
     try {
-      const studentDoc = doc(db, "students", studentId);
       const studentSnapshot = await getDocs(
         query(collection(db, "students"), where("__name__", "==", studentId))
       );
@@ -170,7 +169,6 @@ export default function AdminDashboardPage() {
         ...studentData,
       };
 
-      setScannedStudentId(studentId);
       setScannedStudent(student);
 
       // Log the scan
@@ -472,7 +470,6 @@ export default function AdminDashboardPage() {
                                   variant="outline"
                                   className="h-8 px-2 text-xs"
                                   onClick={() => {
-                                    setScannedStudentId(student.id);
                                     setScannedStudent(student);
                                     setActiveTab("scan");
                                   }}
