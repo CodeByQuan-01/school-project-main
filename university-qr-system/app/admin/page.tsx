@@ -19,6 +19,12 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 
+// Define a proper error type for authentication errors
+interface AuthError extends Error {
+  code?: string;
+  message: string;
+}
+
 export default function AdminLoginPage() {
   const router = useRouter();
   const { signIn, user } = useAuth();
@@ -40,18 +46,23 @@ export default function AdminLoginPage() {
     try {
       await signIn(email, password);
       router.push("/admin/dashboard");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login error:", error);
 
       let errorMessage = "Failed to login. Please check your credentials.";
-      if (
-        error.code === "auth/user-not-found" ||
-        error.code === "auth/wrong-password"
-      ) {
-        errorMessage = "Invalid email or password";
-      } else if (error.code === "auth/too-many-requests") {
-        errorMessage =
-          "Too many failed login attempts. Please try again later.";
+
+      // Type guard to check if error is an AuthError
+      const authError = error as AuthError;
+      if (authError.code) {
+        if (
+          authError.code === "auth/user-not-found" ||
+          authError.code === "auth/wrong-password"
+        ) {
+          errorMessage = "Invalid email or password";
+        } else if (authError.code === "auth/too-many-requests") {
+          errorMessage =
+            "Too many failed login attempts. Please try again later.";
+        }
       }
 
       toast.error("Login Failed", {
