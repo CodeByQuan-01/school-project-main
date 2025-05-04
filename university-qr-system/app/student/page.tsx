@@ -30,7 +30,7 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { QRCodeCanvas } from "qrcode.react"; // Changed from import QRCode from "qrcode.react"
+import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 
 // Firebase configuration
@@ -161,45 +161,69 @@ export default function StudentPage() {
         return;
       }
 
+      // Check Cloudinary configuration
+      if (!process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME) {
+        toast.error("Configuration Error", {
+          description: "Cloudinary configuration is missing",
+        });
+        setLoading(false);
+        return;
+      }
+
       // Upload image to Cloudinary
       const cloudinaryData = new FormData();
       cloudinaryData.append("file", formData.photo);
-      cloudinaryData.append("upload_preset", "university_qr");
+      cloudinaryData.append("upload_preset", "StudentQr");
 
-      const cloudinaryResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-        {
+      const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
+
+      try {
+        const cloudinaryResponse = await fetch(cloudinaryUrl, {
           method: "POST",
           body: cloudinaryData,
+        });
+
+        if (!cloudinaryResponse.ok) {
+          const errorData = await cloudinaryResponse.json();
+          console.error("Cloudinary error:", errorData);
+          throw new Error(
+            `Cloudinary error: ${errorData.error?.message || "Unknown error"}`
+          );
         }
-      );
 
-      const cloudinaryResult = await cloudinaryResponse.json();
+        const cloudinaryResult = await cloudinaryResponse.json();
 
-      if (!cloudinaryResult.secure_url) {
-        throw new Error("Failed to upload image");
+        if (!cloudinaryResult || !cloudinaryResult.secure_url) {
+          console.error("Invalid Cloudinary response:", cloudinaryResult);
+          throw new Error("Invalid response from image upload service");
+        }
+
+        // Save to Firebase
+        const facultyName =
+          faculties.find((f) => f.id === formData.faculty)?.name || "";
+
+        const docRef = await addDoc(collection(db, "students"), {
+          fullName: formData.fullName,
+          matricNumber: formData.matricNumber,
+          faculty: facultyName,
+          department: formData.department,
+          photoUrl: cloudinaryResult.secure_url,
+          status: "Pending",
+          createdAt: serverTimestamp(),
+        });
+
+        setStudentId(docRef.id);
+        setStep(2);
+
+        toast.success("Success!", {
+          description: "Your QR code has been generated successfully",
+        });
+      } catch (uploadError) {
+        console.error("Upload error:", uploadError);
+        toast.error("Upload Failed", {
+          description: "Failed to upload image. Please try again.",
+        });
       }
-
-      // Save to Firebase
-      const facultyName =
-        faculties.find((f) => f.id === formData.faculty)?.name || "";
-
-      const docRef = await addDoc(collection(db, "students"), {
-        fullName: formData.fullName,
-        matricNumber: formData.matricNumber,
-        faculty: facultyName,
-        department: formData.department,
-        photoUrl: cloudinaryResult.secure_url,
-        status: "Pending",
-        createdAt: serverTimestamp(),
-      });
-
-      setStudentId(docRef.id);
-      setStep(2);
-
-      toast.success("Success!", {
-        description: "Your QR code has been generated successfully",
-      });
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error", {
