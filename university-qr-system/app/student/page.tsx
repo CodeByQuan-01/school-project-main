@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,10 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, ArrowLeft, Upload } from "lucide-react";
-import { QRCodeCanvas } from "qrcode.react";
-import { toast } from "sonner";
-
-// Firebase modules - imported dynamically with proper error handling
 import { initializeApp } from "firebase/app";
 import {
   getFirestore,
@@ -34,6 +30,22 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
+import { QRCodeCanvas } from "qrcode.react";
+import { toast } from "sonner";
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // Faculties and departments
 const faculties = [
@@ -81,62 +93,21 @@ export default function StudentPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [studentId, setStudentId] = useState("");
-  const [firebaseInitialized, setFirebaseInitialized] = useState(false);
-  const [db, setDb] = useState(null);
 
   const [formData, setFormData] = useState({
     fullName: "",
     matricNumber: "",
     faculty: "",
     department: "",
-    photo: null,
+    photo: null as File | null,
     photoPreview: "",
   });
 
-  const [availableDepartments, setAvailableDepartments] = useState([]);
+  const [availableDepartments, setAvailableDepartments] = useState<string[]>(
+    []
+  );
 
-  // Initialize Firebase on component mount
-  useEffect(() => {
-    try {
-      // Firebase configuration
-      const firebaseConfig = {
-        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-      };
-
-      // Check if all required Firebase config values are present
-      const requiredKeys = ["apiKey", "authDomain", "projectId", "appId"];
-      const missingKeys = requiredKeys.filter((key) => !firebaseConfig[key]);
-
-      if (missingKeys.length > 0) {
-        console.error(`Missing Firebase config: ${missingKeys.join(", ")}`);
-        toast.error("Firebase Configuration Error", {
-          description:
-            "Firebase is not properly configured. Please check your environment variables.",
-        });
-        return;
-      }
-
-      // Initialize Firebase
-      const app = initializeApp(firebaseConfig);
-      const firestore = getFirestore(app);
-      setDb(firestore);
-      setFirebaseInitialized(true);
-      console.log("Firebase initialized successfully");
-    } catch (error) {
-      console.error("Firebase initialization error:", error);
-      toast.error("Firebase Error", {
-        description:
-          "Could not initialize Firebase. Please check your configuration.",
-      });
-    }
-  }, []);
-
-  const handleFacultyChange = (value) => {
+  const handleFacultyChange = (value: string) => {
     const faculty = faculties.find((f) => f.id === value);
     setFormData({
       ...formData,
@@ -151,7 +122,7 @@ export default function StudentPage() {
     }
   };
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const reader = new FileReader();
@@ -161,7 +132,7 @@ export default function StudentPage() {
           setFormData({
             ...formData,
             photo: file,
-            photoPreview: event.target.result,
+            photoPreview: event.target.result as string,
           });
         }
       };
@@ -170,7 +141,7 @@ export default function StudentPage() {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -190,102 +161,48 @@ export default function StudentPage() {
         return;
       }
 
-      // Check Firebase initialization
-      if (!firebaseInitialized || !db) {
-        toast.error("System Error", {
-          description:
-            "Database not initialized. Please refresh and try again.",
-        });
-        setLoading(false);
-        return;
-      }
+      // Upload image to Cloudinary
+      const cloudinaryData = new FormData();
+      cloudinaryData.append("file", formData.photo);
+      cloudinaryData.append("upload_preset", "StudentQr");
 
-      // For development/testing, skip Cloudinary if not configured
-      let photoUrl = "";
-
-      // Check if Cloudinary is configured
-      if (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME) {
-        try {
-          // Upload image to Cloudinary
-          const cloudinaryData = new FormData();
-          cloudinaryData.append("file", formData.photo);
-          cloudinaryData.append("upload_preset", "StudentQr");
-
-          const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
-
-          console.log("Uploading to Cloudinary...");
-          const cloudinaryResponse = await fetch(cloudinaryUrl, {
-            method: "POST",
-            body: cloudinaryData,
-          });
-
-          if (!cloudinaryResponse.ok) {
-            const errorText = await cloudinaryResponse.text();
-            console.error("Cloudinary upload failed:", errorText);
-            throw new Error(
-              `Cloudinary upload failed: ${cloudinaryResponse.status}`
-            );
-          }
-
-          const cloudinaryResult = await cloudinaryResponse.json();
-          console.log("Cloudinary upload successful:", cloudinaryResult);
-
-          if (!cloudinaryResult || !cloudinaryResult.secure_url) {
-            throw new Error("Invalid response from image upload service");
-          }
-
-          photoUrl = cloudinaryResult.secure_url;
-        } catch (uploadError) {
-          console.error("Upload error:", uploadError);
-          toast.error("Upload Failed", {
-            description: "Failed to upload image. Please try again.",
-          });
-          setLoading(false);
-          return;
+      const cloudinaryResponse = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: cloudinaryData,
         }
-      } else {
-        // For development/testing without Cloudinary
-        console.log("Cloudinary not configured, using photo preview as URL");
-        photoUrl = formData.photoPreview;
+      );
+
+      const cloudinaryResult = await cloudinaryResponse.json();
+
+      if (!cloudinaryResult.secure_url) {
+        throw new Error("Failed to upload image");
       }
 
       // Save to Firebase
-      console.log("Saving to Firebase...");
       const facultyName =
         faculties.find((f) => f.id === formData.faculty)?.name || "";
 
-      // Create student document
-      const studentData = {
+      const docRef = await addDoc(collection(db, "students"), {
         fullName: formData.fullName,
         matricNumber: formData.matricNumber,
         faculty: facultyName,
         department: formData.department,
-        photoUrl: photoUrl,
+        photoUrl: cloudinaryResult.secure_url,
         status: "Pending",
         createdAt: serverTimestamp(),
-      };
+      });
 
-      console.log("Student data to save:", studentData);
+      // Update the QR code generation to ensure it's scannable
+      setStudentId(docRef.id);
+      setStep(2);
 
-      try {
-        // Attempt to add the document to Firestore
-        const docRef = await addDoc(collection(db, "students"), studentData);
-        console.log("Document written with ID: ", docRef.id);
-
-        setStudentId(docRef.id);
-        setStep(2);
-
-        toast.success("Success!", {
-          description: "Your QR code has been generated successfully",
-        });
-      } catch (firestoreError) {
-        console.error("Firestore error details:", firestoreError);
-        toast.error("Database Error", {
-          description: "Could not save your information. Please try again.",
-        });
-      }
+      toast.success("Success!", {
+        description: "Your QR code has been generated successfully",
+      });
     } catch (error) {
-      console.error("General error:", error);
+      console.error("Error:", error);
       toast.error("Error", {
         description:
           "There was an error processing your request. Please try again.",
@@ -296,7 +213,7 @@ export default function StudentPage() {
   };
 
   const downloadQRCode = () => {
-    const canvas = document.getElementById("qr-code");
+    const canvas = document.getElementById("qr-code") as HTMLCanvasElement;
     if (canvas) {
       const pngUrl = canvas
         .toDataURL("image/png")
@@ -481,6 +398,9 @@ export default function StudentPage() {
                     size={200}
                     level="H"
                     includeMargin={true}
+                    renderAs="canvas"
+                    bgColor="#FFFFFF"
+                    fgColor="#000000"
                   />
                 </div>
                 <div className="text-center mb-4">

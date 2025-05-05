@@ -37,9 +37,8 @@ import {
   doc,
   addDoc,
   serverTimestamp,
-  Timestamp,
 } from "firebase/firestore";
-import { QrScanner } from "@/components/qr-scanner";
+import { Html5QrScanner } from "@/components/html5-qr-scanner";
 import { StudentDetails } from "@/components/student-detail";
 import {
   DropdownMenu,
@@ -47,6 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ManualEntry } from "@/components/manual-entry";
 import { toast } from "sonner";
 
 // Firebase configuration
@@ -63,8 +63,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Define the Student type - make sure this is the only Student type in the file
-export interface Student {
+type Student = {
   id: string;
   fullName: string;
   matricNumber: string;
@@ -72,8 +71,8 @@ export interface Student {
   department: string;
   photoUrl: string;
   status: "Pending" | "Verified" | "Rejected";
-  createdAt: Timestamp | null;
-}
+  createdAt: any;
+};
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -84,6 +83,7 @@ export default function AdminDashboardPage() {
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [scannedStudentId, setScannedStudentId] = useState<string | null>(null);
   const [scannedStudent, setScannedStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -119,7 +119,9 @@ export default function AdminDashboardPage() {
         setLoading(false);
       } catch (error) {
         console.error("Error fetching students:", error);
-        toast.error("Failed to load student data");
+        toast.error("Error", {
+          description: "Failed to load student data",
+        });
         setLoading(false);
       }
     };
@@ -154,13 +156,37 @@ export default function AdminDashboardPage() {
 
   // Handle QR code scan
   const handleScan = async (studentId: string) => {
+    if (!studentId || studentId.trim() === "") return;
+
     try {
+      setLoading(true);
+      console.log("Scanned QR code:", studentId);
+
+      // Check if the scanned value is a valid Firebase document ID
+      // Firebase IDs are typically 20 characters
+      if (!/^[a-zA-Z0-9]{20}$/.test(studentId)) {
+        // Try to parse as JSON in case it's a JSON string
+        try {
+          const parsedData = JSON.parse(studentId);
+          if (parsedData && parsedData.id) {
+            studentId = parsedData.id;
+          }
+        } catch (e) {
+          // Not JSON, continue with the original value
+        }
+      }
+
+      console.log("Processing student ID:", studentId);
+      const studentDoc = doc(db, "students", studentId);
       const studentSnapshot = await getDocs(
         query(collection(db, "students"), where("__name__", "==", studentId))
       );
 
       if (studentSnapshot.empty) {
-        toast.error("No student found with this QR code");
+        toast.error("Invalid QR Code", {
+          description: "No student found with this QR code",
+        });
+        setLoading(false);
         return;
       }
 
@@ -170,6 +196,7 @@ export default function AdminDashboardPage() {
         ...studentData,
       };
 
+      setScannedStudentId(studentId);
       setScannedStudent(student);
 
       // Log the scan
@@ -179,9 +206,17 @@ export default function AdminDashboardPage() {
         adminEmail: user?.email,
         timestamp: serverTimestamp(),
       });
+
+      toast.success("QR Code Scanned", {
+        description: `Found student: ${student.fullName}`,
+      });
     } catch (error) {
       console.error("Error scanning QR code:", error);
-      toast.error("Failed to process QR code");
+      toast.error("Error", {
+        description: "Failed to process QR code",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -209,10 +244,14 @@ export default function AdminDashboardPage() {
         setScannedStudent({ ...scannedStudent, status });
       }
 
-      toast.success(`Student status updated to ${status}`);
+      toast.success("Status Updated", {
+        description: `Student status updated to ${status}`,
+      });
     } catch (error) {
       console.error("Error updating status:", error);
-      toast.error("Failed to update student status");
+      toast.error("Error", {
+        description: "Failed to update student status",
+      });
     }
   };
 
@@ -315,8 +354,9 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <QrScanner onScan={handleScan} />
+                  <div className="space-y-4">
+                    <Html5QrScanner onScan={handleScan} />
+                    <ManualEntry onSubmit={handleScan} />
                   </div>
                   <div>
                     {scannedStudent ? (
@@ -328,7 +368,8 @@ export default function AdminDashboardPage() {
                       <div className="flex flex-col items-center justify-center h-full p-6 border rounded-lg bg-gray-50">
                         <ScanLine className="h-16 w-16 text-gray-300 mb-4" />
                         <p className="text-center text-gray-500">
-                          Scan a QR code to view student details
+                          Scan a QR code or enter ID manually to view student
+                          details
                         </p>
                       </div>
                     )}
@@ -471,6 +512,7 @@ export default function AdminDashboardPage() {
                                   variant="outline"
                                   className="h-8 px-2 text-xs"
                                   onClick={() => {
+                                    setScannedStudentId(student.id);
                                     setScannedStudent(student);
                                     setActiveTab("scan");
                                   }}
