@@ -11,6 +11,33 @@ import {
   FlipHorizontal,
 } from "lucide-react";
 
+// Define types for the QR Scanner library
+interface QrScannerResult {
+  data: string;
+  cornerPoints?: Array<{ x: number; y: number }>;
+}
+
+interface QrScannerOptions {
+  returnDetailedScanResult?: boolean;
+  preferredCamera?: string;
+  highlightScanRegion?: boolean;
+  highlightCodeOutline?: boolean;
+  maxScansPerSecond?: number;
+}
+
+// Define the QrScanner class type
+class QrScannerClass {
+  constructor(
+    videoElem: HTMLVideoElement,
+    onResult: (result: QrScannerResult) => void,
+    options?: QrScannerOptions
+  );
+  start(): Promise<void>;
+  stop(): void;
+  destroy(): void;
+  static hasCamera(): Promise<boolean>;
+}
+
 interface QrScannerProps {
   onScan: (result: string) => void;
 }
@@ -22,7 +49,8 @@ export function QrScanner({ onScan }: QrScannerProps) {
   const [error, setError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const scannerRef = useRef<any>(null);
+  // Use the specific class type instead of any
+  const scannerRef = useRef<QrScannerClass | null>(null);
 
   // Initialize component
   useEffect(() => {
@@ -112,7 +140,8 @@ export function QrScanner({ onScan }: QrScannerProps) {
       await scannerRef.current.start();
       setIsScanning(true);
       console.log("Scanner started successfully");
-    } catch (err) {
+    } catch (err: any) {
+      // Using any for the error is acceptable in catch blocks
       console.error("Error starting scanner:", err);
       setError(`Failed to start camera: ${err.message || "Unknown error"}`);
     }
@@ -267,9 +296,9 @@ export function QrScanner({ onScan }: QrScannerProps) {
   );
 }
 
-// Add type definitions
+// Add type definitions with proper typing instead of any
 declare global {
   interface Window {
-    QrScanner: any;
+    QrScanner: typeof QrScannerClass;
   }
 }
