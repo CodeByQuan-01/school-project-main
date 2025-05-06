@@ -9,7 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "University QR Verification System",
+  title: "EUI QR VERIFICATION System",
   description:
     "QR code verification system for university students and lecturers",
 };

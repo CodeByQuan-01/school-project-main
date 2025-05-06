@@ -584,7 +584,7 @@ export default function AdminDashboardPage() {
 
       <footer className="bg-[#213B94] text-white p-6 mt-8">
         <div className="container mx-auto text-center">
-          <p>© {new Date().getFullYear()} University QR Verification System</p>
+          <p>© {new Date().getFullYear()} EUI QR VERIFICATION System</p>
         </div>
       </footer>
     </div>

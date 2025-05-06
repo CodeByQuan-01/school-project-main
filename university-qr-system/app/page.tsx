@@ -15,9 +15,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#F5F7FA]">
       <header className="bg-[#213B94] text-white p-4 shadow-md">
         <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-xl md:text-2xl font-bold">
-            University QR Verification
-          </h1>
+          <h1 className="text-xl md:text-2xl font-bold">EUI QR VERIFICATION</h1>
         </div>
       </header>
 
@@ -84,7 +82,7 @@ export default function Home() {
 
       <footer className="bg-[#213B94] text-white p-6">
         <div className="container mx-auto text-center">
-          <p>© {new Date().getFullYear()} University QR Verification System</p>
+          <p>© {new Date().getFullYear()} EUI QR VERIFICATION System</p>
         </div>
       </footer>
     </div>
